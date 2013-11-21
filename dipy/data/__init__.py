@@ -242,8 +242,7 @@ def get_data(name='small_64D'):
     if name == '3shells_data':
         fbvals = pjoin(THIS_DIR, '3shells-1000-2000-3500-N193.bval')
         fbvecs = pjoin(THIS_DIR, '3shells-1000-2000-3500-N193.bvec')
-        fimg = pjoin(THIS_DIR, '3shells-1000-2000-3500-N193.nii.gz')
-        return fimg, fbvals, fbvecs
+        return fbvals, fbvecs
 
 def dsi_voxels():
     fimg, fbvals, fbvecs = get_data('small_101D')
