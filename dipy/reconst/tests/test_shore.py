@@ -20,8 +20,14 @@ import nibabel as nib
 from dipy.reconst.shore_cart import (shore_index_matrix, shore_phi_1d,
                                      shore_phi_3d, shore_psi_1d,
                                      shore_psi_3d, shore_phi_matrix,
-                                     ShoreCartModel, ShoreCartFit)
+                                     ShoreCartModel, ShoreCartFit,
+                                     shore_laplace_delta,
+                                     shore_laplace_s,
+                                     shore_laplace_r,
+                                     shore_laplace_l,
+                                     shore_laplace_reg_matrix)
 from dipy.io.gradients import read_bvals_bvecs
+
 
 
 def test_shore():
@@ -129,7 +135,7 @@ def test_shore_cart_matrix():
     E = np.dot(pmat, coeff[:, None])
     E = np.squeeze(E)
 
-    scm = ShoreCartModel(gtab, radial_order=2, mu=mu, lambd=None)
+    scm = ShoreCartModel(gtab, radial_order=2, mu=mu)
 
     scf = scm.fit(E)
 
@@ -146,7 +152,7 @@ def test_shore_cart_matrix():
     E = np.dot(pmat, coeff[:, None])
     E = np.squeeze(E)
 
-    scm = ShoreCartModel(gtab, radial_order=4, mu=mu, lambd=None)
+    scm = ShoreCartModel(gtab, radial_order=4, mu=mu)
 
     scf = scm.fit(E)
 
@@ -168,17 +174,24 @@ def test_shore_cart_matrix():
 
     odf_gt = multi_tensor_odf(sphere.vertices, [0.5, 0.5], mevals, mevecs)
 
-    scm = ShoreCartModel(gtab, radial_order=8, mu=mu, lambd=None)
+    scm = ShoreCartModel(gtab, radial_order=8, mu=mu, lambd=0)
 
     scf = scm.fit(data)
 
     odf = scf.odf(sphere, smoment=4)
 
-    sm = ShoreModel(gtab, radial_order=6, zeta=700)
+    sm = ShoreModel(gtab, radial_order=8, zeta=700)
 
     smf = sm.fit(data)
 
     odf2 = smf.odf(sphere)
+
+
+    scm = ShoreCartModel(gtab, radial_order=8, mu=mu, lambd=1)
+
+    scf = scm.fit(data)
+
+    odf3 = scf.odf(sphere, smoment=4)
 
 
 
@@ -188,17 +201,43 @@ def test_shore_cart_matrix():
 
     ren = fvtk.ren()
 
-    odfs = np.zeros((3, 1, 1, sphere.vertices.shape[0]))
+    odfs = np.zeros((4, 1, 1, sphere.vertices.shape[0]))
     odfs[0, 0, 0] = odf_gt
     odfs[1, 0, 0] = odf
     odfs[2, 0, 0] = odf2
+    odfs[3, 0, 0] = odf3
 
     fvtk.add(ren, fvtk.sphere_funcs(odfs, sphere))
     fvtk.show(ren)
 
 
+def test_shore_laplace():
+
+    zeta = 700.
+    #mu = 1/ (2 * np.pi * np.sqrt(zeta))
+    mu = 1.5
+
+    mat = shore_index_matrix(4)
+
+    assert_almost_equal(shore_laplace_s(1, 1, 1.5), -0.18806319, 6)
+
+    assert_almost_equal(shore_laplace_l(1, 3, 1.5), 20.459343469, 6)
+
+    assert_almost_equal(shore_laplace_r(2, 6, 1.5), 7038.49129207, 6)
+
+    assert_almost_equal(shore_laplace_delta(mat[2], mat[2], mu),
+                        826.56401598, 6)
+
+    assert_almost_equal(shore_laplace_delta(mat[1], mat[3], mu),
+                        52.4803, 4)
+
+
+
+    LR = shore_laplace_reg_matrix(2, 1.5)
+    print LR
 
 
 if __name__ == '__main__':
     # run_module_suite()
     test_shore_cart_matrix()
+    #test_shore_laplace()
