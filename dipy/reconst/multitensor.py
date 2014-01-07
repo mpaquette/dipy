@@ -46,7 +46,7 @@ class MultiTensorModel():
 
         coef = params2tensor(params, N, iso)
 
-    return MultiTensorFit(self, coef)
+        return MultiTensorFit(self, coef)
 
 class MultiTensorFit():
 
@@ -106,7 +106,7 @@ def build_param(bs, gs, lam1_init, lam2_init, ang1_init, ang2_init, N, iso):
 
     return params
 
-def params2tensor(params, N, iso)
+def params2tensor(params, N, iso):
 
     mevals = np.zeros((N + iso, 3))
     angles = []
@@ -138,5 +138,5 @@ def params2tensor(params, N, iso)
 
     fractions *= 100
 
-return (mevals, angles, fractions)
+    return (mevals, angles, fractions)
 
