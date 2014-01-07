@@ -44,6 +44,8 @@ class MultiTensorModel():
     
         argmin = minimize(residual, params, method = 'leastsq', args = (data))
 
+        coef = params2tensor(params, N, iso)
+
     return MultiTensorFit(self, coef)
 
 class MultiTensorFit():
@@ -55,20 +57,33 @@ class MultiTensorFit():
         ----------
         model : object,
             AnalyticalModel
-        coef : 2d ndarray,
-            multitensor coefficients Nx6
+        coef : (mevals, angles, fractions),
+            multitensor coefficients
         """
 
         self.model = model
-        self._coef = coef
+        self._mevals = coef[0]
+        self._angles = coef[1]
+        self._fractions = coef[2]
         self.gtab = model.gtab
-        self.N = coef.shape[0]
+        self.iso = model.iso
+        self._N = coef[0].shape[0] - self.iso
 
-    # @property
-    # def shore_coeff(self):
-    #     """The SHORE coefficients
-    #     """
-    #     return self._shore_co
+    @property
+    def multitensor_mevals(self):
+        return self._mevals
+
+    @property
+    def multitensor_angles(self):
+        return self._angles
+
+    @property
+    def multitensor_fractions(self):
+        return self._fractions
+
+    @property
+    def multitensor_N(self):
+        return self._N
 
 
 
