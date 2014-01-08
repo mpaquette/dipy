@@ -3,6 +3,7 @@ from dipy.reconst.multi_voxel import multi_voxel_fit
 from lmfit import minimize, Parameters
 from dipy.sims.voxel import multi_tensor
 from dipy.core.gradients import gradient_table
+from lmfit import report_errors
 
 class MultiTensorModel():
 
@@ -27,24 +28,29 @@ class MultiTensorModel():
         # model selection
         if self.selectType == 0:
             N = self.maxN
+        else:
+            raise NotImplementedError, 'Model selection type {} not there'.format(sef.selectType)
 
-        params = build_param(self.bvals, self.bvecs, lam1_init = 1.7e-3, lam2_init = 0.3e-3, ang1_init = 0, ang2_init = 0, N = N, iso = self.iso)
+        params = build_param(self.bvals, self.bvecs, lam1_init = 1.7e-3, lam2_init = 0.3e-3, ang1_init = 90, ang2_init = 0, N = N, iso = self.iso)
 
 
-        def residual(params, data):
+        # def residual(params, data):
+        def residual(params):
             bs = params['bvals'].value
             gs = params['gvals'].value
             gtab = gradient_table(bs,gs)
 
-            mevals, angles, fractions = params2tensor(params, N, iso)
+            mevals, angles, fractions = params2tensor(params, N, self.iso)
 
             model, _ = multi_tensor(gtab, mevals, S0 = 1, angles=angles,
                              fractions=fractions, snr=None)
             return data - model
     
-        argmin = minimize(residual, params, method = 'leastsq', args = (data))
-
-        coef = params2tensor(params, N, iso)
+        # argmin = minimize(residual, params, method = 'leastsq', args = (data))
+        # argmin = minimize(residual, params, method = 'leastsq')
+        argmin = minimize(residual, params, method = 'leastsq', xtol = 1e-16, ftol = 1e-16, maxfev = int(1e9))
+        print(argmin.message)
+        coef = params2tensor(params, N, self.iso)
 
         return MultiTensorFit(self, coef)
 
@@ -94,15 +100,16 @@ def build_param(bs, gs, lam1_init, lam2_init, ang1_init, ang2_init, N, iso):
     params.add('gvals', value=gs, vary = False)
     
     for n in range(N):
-        param.add('lam1{}'.format(n), value = lam1_init, min = 1e-10)
-        param.add('lam2{}'.format(n), value = lam2_init, min = 1e-10)
-        param.add('ang1{}'.format(n), value = ang1_init, min = 0, max = 90)
-        param.add('ang2{}'.format(n), value = ang2_init, min = 0, max = 360)
-        param.add('frac{}'.format(n), value = 1/float(N), min = 0, max = 1)
+        params.add('lam1{}'.format(n), value = lam1_init, min = 1e-10)
+        params.add('lam2{}'.format(n), value = lam2_init, min = 1e-10)
+        params.add('ang1{}'.format(n), value = ang1_init, min = 0, max = 90)
+        # params.add('ang2{}'.format(n), value = ang2_init, min = 0, max = 360)
+        params.add('ang2{}'.format(n), value = n*180/float(N), min = 0, max = 360)
+        params.add('frac{}'.format(n), value = 1/float(N), min = 0, max = 1)
 
     if iso:
-        param.add('lam', value = lam1_init, min = 1e-10)
-        param.add('frac', value = 0.5, min = 0, max = 1)
+        params.add('lam', value = lam1_init, min = 1e-10)
+        params.add('frac', value = 0.5, min = 0, max = 1)
 
     return params
 
