@@ -7,7 +7,7 @@ from lmfit import report_errors
 
 class MultiTensorModel():
 
-    def __init__(self, gtab, iso = False, maxN = 2, selectType = 0):
+    def __init__(self, gtab, iso = False, maxN = 2, selectType = 0, fixMevals = False, fixFractions = False):
 
         self.bvals = gtab.bvals
         self.bvecs = gtab.bvecs
@@ -15,6 +15,8 @@ class MultiTensorModel():
         self.iso = iso
         self.maxN = maxN
         self.selectType = selectType
+        self.fixFractions = fixFractions
+        self.fixMevals = fixMevals
 
         if (gtab.big_delta is None) or (gtab.small_delta is None):
             self.tau = 1 / (4 * np.pi ** 2)
@@ -31,7 +33,7 @@ class MultiTensorModel():
         else:
             raise NotImplementedError, 'Model selection type {} not there'.format(sef.selectType)
 
-        params = build_param(self.bvals, self.bvecs, lam1_init = 1.7e-3, lam2_init = 0.3e-3, ang1_init = 90, ang2_init = 0, N = N, iso = self.iso)
+        params = build_param(self.bvals, self.bvecs, lam1_init = 1.7e-3, lam2_init = 0.3e-3, ang1_init = 90, ang2_init = 0, N = N, iso = self.iso, fixMevals = self.fixMevals, fixFractions = self.fixFractions)
 
 
         # def residual(params, data):
@@ -93,19 +95,19 @@ class MultiTensorFit():
 
 
 
-def build_param(bs, gs, lam1_init, lam2_init, ang1_init, ang2_init, N, iso):
+def build_param(bs, gs, lam1_init, lam2_init, ang1_init, ang2_init, N, iso, fixMevals, fixFractions):
     params = Parameters()
 
     params.add('bvals', value=bs, vary = False)
     params.add('gvals', value=gs, vary = False)
     
     for n in range(N):
-        params.add('lam1{}'.format(n), value = lam1_init, min = 1e-10)
-        params.add('lam2{}'.format(n), value = lam2_init, min = 1e-10)
+        params.add('lam1{}'.format(n), value = lam1_init, min = 1e-10, vary = not fixMevals)
+        params.add('lam2{}'.format(n), value = lam2_init, min = 1e-10, vary = not fixMevals)
         params.add('ang1{}'.format(n), value = ang1_init, min = 0, max = 90)
         # params.add('ang2{}'.format(n), value = ang2_init, min = 0, max = 360)
-        params.add('ang2{}'.format(n), value = n*180/float(N), min = 0, max = 360)
-        params.add('frac{}'.format(n), value = 1/float(N), min = 0, max = 1)
+        params.add('ang2{}'.format(n), value = n*180/np.float64(N), min = 0, max = 360)
+        params.add('frac{}'.format(n), value = 1/np.float64(N), min = 0, max = 1, vary = not fixFractions)
 
     if iso:
         params.add('lam', value = lam1_init, min = 1e-10)
@@ -117,7 +119,7 @@ def params2tensor(params, N, iso):
 
     mevals = np.zeros((N + iso, 3))
     angles = []
-    fractions = []
+    fractions = np.zeros(N + iso)
 
     for n in range(N):
         mevals[n,0] = params['lam1{}'.format(n)].value
@@ -128,10 +130,9 @@ def params2tensor(params, N, iso):
         a2 = params['ang2{}'.format(n)].value
         angles.append((a1,a2))
 
-        # fractions.append(np.exp(params['frac{}'.format(n)].value))
-        fractions.append(params['frac{}'.format(n)].value)
+        fractions[n] = params['frac{}'.format(n)].value
 
-    fractions /= sum(fractions)
+    fractions /= fractions.sum()
 
     if iso:
         mevals[N,0] = params['lam'].value
@@ -141,7 +142,7 @@ def params2tensor(params, N, iso):
         angles.append((0, 0))
 
         fractions *= (1 - params['frac'].value)
-        fractions.append(params['frac'].value)
+        fractions[N] = params['frac'].value
 
     fractions *= 100
 
