@@ -110,8 +110,8 @@ def build_param(bs, gs, lam1_init, lam2_init, ang1_init, ang2_init, N, iso, fixM
         params.add('frac{}'.format(n), value = 1/np.float64(N), min = 0, max = 1, vary = not fixFractions)
 
     if iso:
-        params.add('lam', value = lam1_init, min = 1e-10)
-        params.add('frac', value = 0.5, min = 0, max = 1)
+        params.add('lam', value = lam2_init, min = 1e-10)
+        params.add('frac', value = 0.2, min = 0, max = 1)
 
     return params
 
