@@ -1,9 +1,13 @@
 import numpy as np
 from dipy.reconst.multi_voxel import multi_voxel_fit
 from lmfit import minimize, Parameters
-from dipy.sims.voxel import multi_tensor
+from dipy.sims.voxel import multi_tensor, multi_tensor_odf
 from dipy.core.gradients import gradient_table
 from lmfit import report_errors
+# from dipy.reconst.shm import smooth_pinv, real_sym_sh_basis
+# from dipy.reconst.cache import Cache
+# from dipy.core.geometry import cart2sphere
+# from scipy.special import lpn
 
 class MultiTensorModel():
 
@@ -30,6 +34,58 @@ class MultiTensorModel():
         # model selection
         if self.selectType == 0:
             N = self.maxN
+        # elif self.selectType == 1:
+        #     # ANOVA on SH fit
+        #     shell_bval = sorted(list(set(gtab.bvals)))[1]
+        #     sub_data_idx = np.where(gtab.bvals == shell_bval)
+        #     x, y, z = gtab.bvecs[sub_data_idx].T
+        #     r, theta, phi = cart2sphere(x, y, z)
+
+        #     smooth = 0.0
+
+        #     B2 = self.model.cache_get('SH matrix l=2', key=(theta, phi))
+        #     F2 = self.model.cache_get('reg matrix l=2', key=(theta, phi))
+        #     if B2 is None:
+        #         sh_order = 2
+        #         B2, m, n = real_sym_sh_basis(sh_order, theta[:, None], phi[:, None])
+        #         self.model.cache_set('SH matrix l=2', (theta, phi), B2)
+        #         L = -n * (n + 1)
+        #         legendre0 = lpn(sh_order, 0)[0]
+        #         F2 = legendre0[n]
+        #         self.model.cache_set('reg matrix l=2', (theta, phi), F2)
+
+        #     B4 = self.model.cache_get('SH matrix l=4', key=(theta, phi))
+        #     F4 = self.model.cache_get('reg matrix l=4', key=(theta, phi))
+        #     if B4 is None:
+        #         sh_order = 4
+        #         B4, m, n = real_sym_sh_basis(sh_order, theta[:, None], phi[:, None])
+        #         self.model.cache_set('SH matrix l=4', (theta, phi), B4)
+        #         L = -n * (n + 1)
+        #         legendre0 = lpn(sh_order, 0)[0]
+        #         F4 = legendre0[n]
+        #         self.model.cache_set('reg matrix l=4', (theta, phi), F4)
+
+        #     # B6 = self.model.cache_get('SH matrix l=6', key=(theta, phi))
+        #     # F6 = self.model.cache_get('reg matrix l=6', key=(theta, phi))
+        #     # if B6 is None:
+        #     #     sh_order = 6
+        #     #     B6, m, n = real_sym_sh_basis(sh_order, theta[:, None], phi[:, None])
+        #     #     self.model.cache_set('SH matrix l=6', (theta, phi), B6)
+        #     #     L = -n * (n + 1)
+        #     #     legendre0 = lpn(sh_order, 0)[0]
+        #     #     F6 = legendre0[n]
+        #     #     self.model.cache_set('reg matrix l=6', (theta, phi), F6)
+
+
+        #     fit_matrix2 = self.model.cache_get('inv SH matrix l=2', key=(theta, phi))
+        #     if fit_matrix2 in None:
+        #         invB = smooth_pinv(B2, sqrt(smooth) * L)
+        #         F = F[:, None]
+        #         fit_matrix2 = F * invB
+
+        #         dot(data[..., self._where_dwi], self._fit_matrix.T)
+
+
         else:
             raise NotImplementedError, 'Model selection type {} not there'.format(sef.selectType)
 
@@ -50,15 +106,17 @@ class MultiTensorModel():
     
         # argmin = minimize(residual, params, method = 'leastsq', args = (data))
         # argmin = minimize(residual, params, method = 'leastsq')
-        argmin = minimize(residual, params, method = 'leastsq', xtol = 1e-16, ftol = 1e-16, maxfev = int(1e9))
-        print(argmin.message)
+        argmin = minimize(residual, params, method = 'leastsq', xtol = 1e-16, ftol = 1e-16, maxfev = int(1e3))
+        # print(argmin.message)
         coef = params2tensor(params, N, self.iso)
 
-        return MultiTensorFit(self, coef)
+        fitQuality = (residual(params)**2).sum()
+
+        return MultiTensorFit(self, coef, fitQuality)
 
 class MultiTensorFit():
 
-    def __init__(self, model, coef):
+    def __init__(self, model, coef, fitQuality):
         """ Calculates diffusion properties for a single voxel
 
         Parameters
@@ -76,6 +134,7 @@ class MultiTensorFit():
         self.gtab = model.gtab
         self.iso = model.iso
         self._N = coef[0].shape[0] - self.iso
+        self._fitQuality = fitQuality
 
     @property
     def multitensor_mevals(self):
@@ -92,6 +151,12 @@ class MultiTensorFit():
     @property
     def multitensor_N(self):
         return self._N
+
+    def multitensor_fitQuality(self):
+        return self._fitQuality
+
+    def odf(self,sphere):
+        return multi_tensor_odf(sphere.vertices, self._mevals, self._angles, self._fractions)
 
 
 
