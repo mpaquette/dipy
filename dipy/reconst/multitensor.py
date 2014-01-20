@@ -3,7 +3,7 @@ from dipy.reconst.multi_voxel import multi_voxel_fit
 from lmfit import minimize, Parameters
 from dipy.sims.voxel import multi_tensor, multi_tensor_odf
 from dipy.core.gradients import gradient_table
-from lmfit import report_errors
+# from lmfit import report_errors
 # from dipy.reconst.shm import smooth_pinv, real_sym_sh_basis
 # from dipy.reconst.cache import Cache
 # from dipy.core.geometry import cart2sphere
