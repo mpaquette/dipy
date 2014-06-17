@@ -468,7 +468,8 @@ def project_hemisph_bvecs(gtab):
 class DiffusionSpectrumDeconvModel(DiffusionSpectrumModel):
 
     def __init__(self, gtab, qgrid_size=35, r_start=4.1, r_end=13.,
-                 r_step=0.4, filter_width=np.inf, normalize_peaks=False):
+                 r_step=0.4, filter_width=np.inf, normalize_peaks=False,
+                 numit = 5, acc_fac = 2., snr_th = 15.):
         r""" Diffusion Spectrum Deconvolution
 
         The idea is to remove the convolution on the DSI propagator that is
@@ -521,6 +522,10 @@ class DiffusionSpectrumDeconvModel(DiffusionSpectrumModel):
                                         filter_width,
                                         normalize_peaks)
 
+        self.numit = numit
+        self.acc_fac = acc_fac
+        self.snr_th = snr_th
+
     @multi_voxel_fit
     def fit(self, data):
         return DiffusionSpectrumDeconvFit(self, data)
@@ -551,18 +556,21 @@ class DiffusionSpectrumDeconvFit(DiffusionSpectrumFit):
         Pr = fftshift(np.abs(np.real(fftn(ifftshift(Sq),
                       3 * (self.qgrid_sz, )))))
         # threshold propagator
-        Pr = threshold_propagator(Pr)
+        Pr = threshold_propagator(Pr, self.model.snr_th)
         # apply LR deconvolution
-        Pr = LR_deconv(Pr, DSID_PSF, 5, 2)
+        Pr = LR_deconv(Pr, DSID_PSF, self.model.numit, self.model.acc_fac)
         return Pr
 
 
-def threshold_propagator(P, estimated_snr=15.):
+# def threshold_propagator(P, estimated_snr=15.):
+def threshold_propagator(P, estimated_snr):
     """
     Applies hard threshold on the propagator to remove background noise for the
     deconvolution.
     """
     P_thresholded = P.copy()
+    P_thresholded /= P_thresholded.sum()
+    # print(P.sum(),estimated_snr)
     threshold = P_thresholded.max() / float(estimated_snr)
     P_thresholded[P_thresholded < threshold] = 0
     return P_thresholded / P_thresholded.sum()
@@ -581,7 +589,8 @@ def gen_PSF(qgrid_sampling, siz_x, siz_y, siz_z):
     return Sq * np.real(np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(Sq))))
 
 
-def LR_deconv(prop, psf, numit=5, acc_factor=1):
+# def LR_deconv(prop, psf, numit=5, acc_factor=1):
+def LR_deconv(prop, psf, numit, acc_factor):
     r"""
     Perform Lucy-Richardson deconvolution algorithm on a 3D array.
 
@@ -603,7 +612,7 @@ def LR_deconv(prop, psf, numit=5, acc_factor=1):
        1997.
 
     """
-
+    # print(numit,acc_factor)
     eps = 1e-16
     # Create the otf of the same size as prop
     otf = np.zeros_like(prop)

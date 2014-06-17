@@ -8,6 +8,78 @@ from dipy.core.gradients import gradient_table
 # from dipy.reconst.cache import Cache
 # from dipy.core.geometry import cart2sphere
 # from scipy.special import lpn
+from scipy.optimize import fmin_l_bfgs_b as l_bfgs_b
+
+class MultiTensorModel():
+
+    def __init__(self, gtab, iso = False, maxN = 2, selectType = 0, fixMevals = False, fixFractions = False):
+
+        self.bvals = gtab.bvals
+        self.bvecs = gtab.bvecs
+        self.gtab = gtab
+        self.iso = iso
+        self.maxN = maxN
+        self.selectType = selectType
+        self.fixFractions = fixFractions
+        self.fixMevals = fixMevals
+
+        if (gtab.big_delta is None) or (gtab.small_delta is None):
+            self.tau = 1 / (4 * np.pi ** 2)
+        else:
+            self.tau = gtab.big_delta - gtab.small_delta / 3.0
+
+
+    @multi_voxel_fit
+    def fit(self, data):
+        if self.selectType == 0:
+            N = self.maxN
+
+        else:
+            raise NotImplementedError, 'Model selection type {} not there'.format(self.selectType)
+
+        !!params = build_param2(self.bvals, self.bvecs, lam1_init = 1.7e-3, lam2_init = 0.3e-3, ang1_init = 90, ang2_init = 0, N = N, iso = self.iso, fixMevals = self.fixMevals, fixFractions = self.fixFractions)
+        
+
+        def residual(params):
+            !!bs = params['bvals'].value
+            !!gs = params['gvals'].value
+            gtab = gradient_table(bs,gs)
+
+            !!mevals, angles, fractions = params2tensor(params, N, self.iso)
+
+            model, _ = multi_tensor(gtab, mevals, S0 = 1, angles=angles,
+                             fractions=fractions, snr=None)
+            return data - model
+    
+
+        !!argmin = minimize(residual, params, method = 'leastsq', xtol = 1e-16, ftol = 1e-16, maxfev = int(1e3))
+
+        !!coef = params2tensor(params, N, self.iso)
+
+        fitQuality = (residual(params)**2).sum()
+
+        return MultiTensorFit(self, coef, fitQuality)
+
+def build_param2(bs, gs, lam1_init, lam2_init, ang1_init, ang2_init, N, iso, fixMevals, fixFractions):
+    params = Parameters()
+
+    params.add('bvals', value=bs, vary = False)
+    params.add('gvals', value=gs, vary = False)
+    
+    for n in range(N):
+        params.add('lam1{}'.format(n), value = lam1_init, min = 1e-10, vary = not fixMevals)
+        params.add('lam2{}'.format(n), value = lam2_init, min = 1e-10, vary = not fixMevals)
+        params.add('ang1{}'.format(n), value = ang1_init, min = 0, max = 90)
+        # params.add('ang2{}'.format(n), value = ang2_init, min = 0, max = 360)
+        params.add('ang2{}'.format(n), value = n*180/np.float64(N), min = 0, max = 360)
+        params.add('frac{}'.format(n), value = 1/np.float64(N), min = 0, max = 1, vary = not fixFractions)
+
+    if iso:
+        params.add('lam', value = lam2_init, min = 1e-10)
+        params.add('frac', value = 0.2, min = 0, max = 1)
+
+    return params
+
 
 class MultiTensorModel():
 
@@ -87,7 +159,7 @@ class MultiTensorModel():
 
 
         else:
-            raise NotImplementedError, 'Model selection type {} not there'.format(sef.selectType)
+            raise NotImplementedError, 'Model selection type {} not there'.format(self.selectType)
 
         params = build_param(self.bvals, self.bvecs, lam1_init = 1.7e-3, lam2_init = 0.3e-3, ang1_init = 90, ang2_init = 0, N = N, iso = self.iso, fixMevals = self.fixMevals, fixFractions = self.fixFractions)
 
