@@ -6,95 +6,150 @@ import nibabel as nib
 from itertools import product
 # Example using the CSD to process the data
 
-from sparc_dmri.load_data import get_data, get_mask
-from sparc_dmri.output import compute_npeaks_and_angles, screenshot_odf, screenshot_peaks, get_crop_peaks, signal_from_peaks
-
-from dipy.reconst.csdeconv import auto_response, ConstrainedSphericalDeconvModel
+from dipy.reconst.csdeconv import (auto_response, ConstrainedSphericalDeconvModel,
+                                   ConstrainedSDTModel)
+from dipy.reconst.shm import (QballModel, CsaOdfModel)
 from dipy.data import get_sphere
 from dipy.reconst.peaks import peaks_from_model, reshape_peaks_for_visualization
 from dipy.reconst.dti import TensorModel
+from dipy.core.gradients import gradient_table
+from dipy.viz import fvtk
+
+def screenshot_odf(odf, sphere, filename, show=False):
+    """Takes a screenshot of the odfs, saved as filename.png"""
+
+    if ".png" not in filename:
+        filename += '.png'
+
+    ren = fvtk.ren()
+    fodf_spheres = fvtk.sphere_funcs(odf, sphere, scale=1.8, norm=True)
+    fvtk.add(ren, fodf_spheres)
+ #   fvtk.add(ren, fvtk.axes())
+
+    fodf_spheres.RotateZ(90)
+    fodf_spheres.RotateX(180)
+    fodf_spheres.RotateY(180)
+
+    if show:
+        fvtk.show(ren, size=(600, 600))
+
+    fvtk.record(ren, out_path=filename, size=(1000, 1000))
+    print('Saved illustration as', filename)
+
+
+def screenshot_peaks(peaks_dirs, filename, peaks_values=None, show=False):
+    """Takes a screenshot of the peaks, saved as filename.png"""
+
+    if ".png" not in filename:
+        filename += '.png'
+
+    ren = fvtk.ren()
+    fodf_peaks = fvtk.peaks(peaks_dirs, peaks_values, scale=1.8)
+    fvtk.add(ren, fodf_peaks)
+  #  fvtk.add(ren, fvtk.axes())
+
+    fodf_peaks.RotateZ(90)
+    fodf_peaks.RotateX(180)
+    fodf_peaks.RotateY(180)
+
+    if show:
+        fvtk.show(ren, size=(600, 600))
+
+    fvtk.record(ren, out_path=filename, size=(1000, 1000))
+    print('Saved illustration as', filename)
+
+
 
 # Load the dataset
 ndir = 60
 shell = None
-denoised = None
+               
+# need to write a get_data function    
 
-for ndir, shell, denoised in product([20], [2000], [None, 'nlm', 'nlsam']):
-    print(ndir, shell, denoised)
-    if shell is None:
-        filename = 'CSD_' + str(ndir) + '_dirs_multi_' + str(denoised) + '_'
-    else:
-        filename = 'CSD_' + str(ndir) + '_dirs_' + str(shell) + '_' + str(denoised) + '_'
+img = nib.load('Gradient_60.nii')
+data = img.get_data()
+affine = img.get_affine()
 
-    data, affine, gtab = get_data(ndir, shell=shell, denoised=denoised)
-    mask = get_mask()
-    response, ratio = auto_response(gtab, data, roi_radius=3, fa_thr=0.9)
+bvals = np.loadtxt('bvalue.txt')
+bvecs = np.loadtxt('bvec.txt')
 
-    if ndir == 60:
-        sh_order = 8
-    elif ndir == 30:
-        sh_order = 6
-    else:
-        sh_order = 4
+ind1000 = bvals < 1100
+S1000 = data[..., ind1000]
+bvals = bvals[ind1000]
+bvecs = bvecs[ind1000]
 
-    print("SH order is", sh_order)
+gtab = gradient_table(bvals, bvecs)
 
-    # Compute tensors
-    tenmodel = TensorModel(gtab)
-    tenfit = tenmodel.fit(data, mask)
-    sphere = get_sphere('symmetric724').subdivide()
+sh_order = 8
+print("SH order is", sh_order)
+response, ratio = auto_response(gtab, S1000, roi_radius=3, fa_thr=0.9)
 
-    # Compute CSD
-    S0 = response[1]
-    for (a, b) in [(30., 2.)]: #(15., 4.), (19., 2.), (25., 2.), (25., 1.), (25, 2.5), (21., 2.), (19., 2.), (17., 3.), (19., 5.), (14., 2.), (17., 2.)]:
+# Compute tensors
+tenmodel = TensorModel(gtab)
+tenfit = tenmodel.fit(S1000)
+sphere = get_sphere('symmetric724').subdivide()
 
-        response = (1e-4 * np.array([a, b, b]), S0)
-        csd_model = ConstrainedSphericalDeconvModel(gtab, response)
-        peaks_csd = peaks_from_model(model=csd_model,
-                                     data=data,
-                                     sphere=sphere,
-                                     mask=mask,
-                                     relative_peak_threshold=.5,
-                                     min_separation_angle=25,
-                                     parallel=True,
-                                     npeaks=3,
-                                     return_sh=True,
-                                     normalize_peaks=True,
-                                     return_odf=True,
-                                     sh_order=sh_order)
+filename = 'test'
 
-        nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs), axis=-1) > 0, axis=-1).ravel()
-        print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
-        screenshot_odf(peaks_csd.odf, sphere, filename + str(a) + "_" + str(b) + "_odf.png")
-        screenshot_peaks(peaks_csd.peak_dirs, filename + str(a) + "_" + str(b) + "_peaks.png", peaks_csd.peak_values)
+# # Compute CSD
+# S0 = response[1]
+# (a, b) = (17., 3.) 
+# response = (1e-4 * np.array([a, b, b]), S0)
+# csd_model = ConstrainedSphericalDeconvModel(gtab, response, sh_order=sh_order)
+# peaks_csd = peaks_from_model(model=csd_model,
+#                              data=S1000,
+#                              sphere=sphere,
+#                              relative_peak_threshold=.25,
+#                              min_separation_angle=25,
+#                              parallel=True,
+#                              npeaks=5,
+#                              return_sh=True,
+#                              normalize_peaks=False,
+#                              return_odf=True,
+#                              sh_order=sh_order)
 
-    # Save everything
-    nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'), affine), filename + 'fodf_CSD.nii.gz')
-    nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd), affine), filename + 'peaks_CSD.nii.gz')
-    nib.save(nib.Nifti1Image(peaks_csd.peak_indices, affine), filename + 'fodf_CSD_peak_indices.nii.gz')
-    nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), affine), filename + 'fa.nii.gz')
+# nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs), axis=-1) > 0, axis=-1).ravel()
+# print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
 
-    # Take a screenshot
-    #screenshot_odf(peaks_csd.odf, sphere, filename + "odf.png")
+# screenshot_odf(peaks_csd.odf, sphere, filename + str(a) + "_" + str(b) + "_CSDodf.png", show=True)
+# screenshot_peaks(peaks_csd.peak_dirs, filename + str(a) + "_" + str(b) + 
+#                  "_CSDpeaks.png", peaks_csd.peak_values, show=True)
+# # Save everything
+# nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'), affine), filename + 'fodf_CSD.nii.gz')
+# nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd), affine), filename + 'peaks_CSD.nii.gz')
+# nib.save(nib.Nifti1Image(peaks_csd.peak_indices, affine), filename + 'fodf_CSD_peak_indices.nii.gz')
+# nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), affine), filename + 'fa.nii.gz')
 
-    # Get the number of fiber and angles in the required format
-    angles = compute_npeaks_and_angles(peaks_csd.peak_dirs)
+# Compute Qball
+qball_model = QballModel(gtab, sh_order=sh_order)
+peaks_qball = peaks_from_model(model=qball_model,
+                               data=S1000,
+                               sphere=sphere,
+                               relative_peak_threshold=.25,
+                               min_separation_angle=25,
+                               parallel=False,
+                               npeaks=5,
+                               return_sh=True,
+                               normalize_peaks=False,
+                               return_odf=True,
+                               sh_order=sh_order)
+screenshot_odf(peaks_qball.odf, sphere, filename + "_Qballodf.png", show=True)
+screenshot_peaks(peaks_qball.peak_dirs, filename + "_Qballpeaks.png", peaks_qball.peak_values, 
+                 show=True)
+# Compute Qball
+csa_model = CsaOdfModel(gtab, sh_order=sh_order)
+peaks_csa = peaks_from_model(model=csa_model,
+                             data=S1000,
+                             sphere=sphere,
+                             relative_peak_threshold=.25,
+                             min_separation_angle=25,
+                             parallel=False,
+                             npeaks=5,
+                             return_sh=True,
+                             normalize_peaks=False,
+                             return_odf=True,
+                             sh_order=sh_order)
+screenshot_odf(peaks_csa.odf, sphere, filename + "_CSAodf.png", show=True)
+screenshot_peaks(peaks_csa.peak_dirs, filename + "_CSApeaks.png", peaks_csa.peak_values, show=True)
 
-    np.savetxt(filename + 'angles.txt', angles[:1], fmt="%i")
-    f_handle = file(filename + 'angles.txt', 'a')
 
-    np.savetxt(f_handle, angles[1:], fmt="%.4f")
-    f_handle.close()
-
-    # Get the signal estimation
-    indices = np.where(angles[0].reshape(13, 16) == 1)
-    lambdas = tenfit.evals[indices][:, :2]
-    l01 = np.mean(lambdas, axis=0).squeeze()
-    evals = np.array([l01[0], l01[1], l01[1]])
-
-    # Restore original B0
-    data_clean, _, _ = get_data(ndir, shell=shell, denoised=None)
-    data[..., 0] = data_clean[..., 0]
-
-    signal = signal_from_peaks(data, peaks_csd.peak_dirs, peaks_csd.peak_values, evals, shell)
-    np.savetxt(filename + 'signal.txt', signal, fmt="%.4f")
