@@ -91,34 +91,34 @@ sphere = get_sphere('symmetric724').subdivide()
 
 filename = 'test'
 
-# # Compute CSD
-# S0 = response[1]
-# (a, b) = (17., 3.) 
-# response = (1e-4 * np.array([a, b, b]), S0)
-# csd_model = ConstrainedSphericalDeconvModel(gtab, response, sh_order=sh_order)
-# peaks_csd = peaks_from_model(model=csd_model,
-#                              data=S1000,
-#                              sphere=sphere,
-#                              relative_peak_threshold=.25,
-#                              min_separation_angle=25,
-#                              parallel=True,
-#                              npeaks=5,
-#                              return_sh=True,
-#                              normalize_peaks=False,
-#                              return_odf=True,
-#                              sh_order=sh_order)
+# Compute CSD
+S0 = response[1]
+(a, b) = (17., 3.) 
+response = (1e-4 * np.array([a, b, b]), S0)
+csd_model = ConstrainedSphericalDeconvModel(gtab, response, sh_order=sh_order)
+peaks_csd = peaks_from_model(model=csd_model,
+                             data=S1000,
+                             sphere=sphere,
+                             relative_peak_threshold=.25,
+                             min_separation_angle=25,
+                             parallel=False,
+                             npeaks=5,
+                             return_sh=True,
+                             normalize_peaks=False,
+                             return_odf=True,
+                             sh_order=sh_order)
 
-# nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs), axis=-1) > 0, axis=-1).ravel()
-# print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
+nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs), axis=-1) > 0, axis=-1).ravel()
+print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
 
-# screenshot_odf(peaks_csd.odf, sphere, filename + str(a) + "_" + str(b) + "_CSDodf.png", show=True)
-# screenshot_peaks(peaks_csd.peak_dirs, filename + str(a) + "_" + str(b) + 
-#                  "_CSDpeaks.png", peaks_csd.peak_values, show=True)
-# # Save everything
-# nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'), affine), filename + 'fodf_CSD.nii.gz')
-# nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd), affine), filename + 'peaks_CSD.nii.gz')
-# nib.save(nib.Nifti1Image(peaks_csd.peak_indices, affine), filename + 'fodf_CSD_peak_indices.nii.gz')
-# nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), affine), filename + 'fa.nii.gz')
+screenshot_odf(peaks_csd.odf, sphere, filename + str(a) + "_" + str(b) + "_CSDodf.png", show=True)
+screenshot_peaks(peaks_csd.peak_dirs, filename + str(a) + "_" + str(b) + 
+                 "_CSDpeaks.png", peaks_csd.peak_values, show=True)
+# Save everything
+nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'), affine), filename + 'fodf_CSD.nii.gz')
+nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd), affine), filename + 'peaks_CSD.nii.gz')
+nib.save(nib.Nifti1Image(peaks_csd.peak_indices, affine), filename + 'fodf_CSD_peak_indices.nii.gz')
+nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), affine), filename + 'fa.nii.gz')
 
 # Compute Qball
 qball_model = QballModel(gtab, sh_order=sh_order)
