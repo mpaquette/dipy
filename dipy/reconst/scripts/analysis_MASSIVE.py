@@ -14,12 +14,37 @@ from dipy.reconst.peaks import peaks_from_model, reshape_peaks_for_visualization
 from dipy.reconst.dti import TensorModel
 from dipy.core.gradients import gradient_table
 from dipy.viz import fvtk
+from dipy.reconst.shore import ShoreModel
 
 import itertools
 from dipy.io.gradients import read_bvals_bvecs
 from dipy.core.ndindex import ndindex
 
+import argparse
 
+DESCRIPTION = """
+    Automatic crop of a volume using a bounding box
+    """
+
+sphere = get_sphere('symmetric724').subdivide()
+
+
+def buildArgsParser():
+
+    p = argparse.ArgumentParser(description=DESCRIPTION)
+
+    p.add_argument('input', action='store', metavar='input', type=str,
+                   help='Path of the input diffusion volume.')
+
+    p.add_argument('output', action='store', metavar='output', type=str,
+                   help='Path of the output diffusion volume.')
+
+#    p.add_argument('-o', action='store', dest='savename',
+#                   metavar='savename', required=False, default=None, type=str,
+#                   help='Path and prefix for the saved metrics files. The name is always appended \
+#                   with _(metric_name).nii.gz, where (metric_name) if the name of the computed metric.')
+
+    return p
 
 def make_name(nS, N, shells, order, it):
 	# nS: int, number of shells
@@ -115,7 +140,8 @@ def csd_ms(gtab, data, aff, mask, response, sphere, min_angle=15.0,
     coeffs = []
     Bs = []
 
-    Ns = np.array([gd1[0].gradients.shape[0], gd2[0].gradients.shape[0], gd3[0].gradients.shape[0], gd4[0].gradients.shape[0], gd5[0].gradients.shape[0]])
+    Ns = np.array([gd1[0].gradients.shape[0], gd2[0].gradients.shape[0],
+                   gd3[0].gradients.shape[0], gd4[0].gradients.shape[0], gd5[0].gradients.shape[0]])
     N = np.min(Ns[Ns > 0])
 
     if N >= 45:
@@ -166,7 +192,8 @@ def sdt_ms(gtab, data, aff, mask, ratio, sphere, min_angle=25.0, relative_peak_t
     coeffs = []
     Bs = []
 
-    Ns = np.array([gd1[0].gradients.shape[0], gd2[0].gradients.shape[0], gd3[0].gradients.shape[0], gd4[0].gradients.shape[0], gd5[0].gradients.shape[0]])
+    Ns = np.array([gd1[0].gradients.shape[0], gd2[0].gradients.shape[0],
+                   gd3[0].gradients.shape[0], gd4[0].gradients.shape[0], gd5[0].gradients.shape[0]])
     N = np.min(Ns[Ns > 0])
 
     if N >= 45:
@@ -223,7 +250,8 @@ def pfm(model, data, mask, sphere, parallel=True, min_angle=25.0, relative_peak_
                              parallel=parallel)
     return peaks
 
-def peak_extract(new_peaks, odf, mask, npeaks=3, normalize_peaks=True, relative_peak_th=0.35, min_angle=15):
+def peak_extract(new_peaks, odf, mask, npeaks=3, normalize_peaks=True,
+                 relative_peak_th=0.35, min_angle=15):
 
     global_max = -np.inf
 
@@ -259,238 +287,328 @@ def peak_extract(new_peaks, odf, mask, npeaks=3, normalize_peaks=True, relative_
     return new_peaks
 
 
+def main():
+    parser = buildArgsParser()
+    args = parser.parse_args()
 
-# Get data from MASSIVE or simulations
-# Example of loop over all samplings
-for S in [1, 2, 3, 4, 5]:
-    for N in [30, 60, 90]:
-        shell_permu = [list(i) for i in set([i for i in itertools.permutations(S*[1] + (5-S)*[0])])]
-        for shells in shell_permu:
-            list_order = [0, 1, 2]
-            if S == 1:
-                list_order = [0]
-            for order in list_order:
-                for it in [0]:
-                    wd = 'D:/H_schijf/Data/MASSIVE/Processed/Analysis/GradSamplingB0/'
-                    fname = make_name(S, N, shells, order, it)
-                    bvals, bvecs = read_bvals_bvecs(wd + 'grad/grad_' + fname + '.bval',
-                    					 					   wd + 'grad/grad_' + fname + '.bvec')
-                    vol = nib.load(wd + 'data/data_' + fname + '.nii.gz')
-                    data = vol.get_data()
-                    aff  = vol.get_affine()
-                    hdr  = vol.get_header()
-                    gtab = gradient_table(bvals=bvals, bvecs=bvecs, big_delta=51.6, small_delta=32.8, b0_threshold=0.5)
-                    tag = 'img/'
-                    mask = np.ones([1, 1, 1], dtype='bool')
+    inputfolder = args.input
+    outputfolder = args.output
 
-
-                    # Set parameters
-                    _where_b0s = lazy_index(gtab.b0s_mask)
-                    S0 = np.mean(data[:, :, :, _where_b0s])
-                    sphere = get_sphere('symmetric724').subdivide()
-
-                    # Compute DTI LLS
-                    tenmodel = TensorModel(gtab, fit_method="LS")
-                    tenfit = tenmodel.fit(data)
-                    filename = wd + tag + fname + '_DTILLS'
-                    screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png", show=True)
-                    screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png", tenfit.evals[:, :, :, 0], show=True)
-                    # Save everything
-                    nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff), '_evecs.nii.gz')
-                    nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff), '_evals.nii.gz')
-                    nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + 'fa.nii.gz')
-
-                    # Compute DTI WLLS
-                    tenmodel = TensorModel(gtab, fit_method="WLS")
-                    tenfit = tenmodel.fit(data)
-                    filename = wd + tag + fname + '_DTIWLLS'
-                    screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png", show=True)
-                    screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png", tenfit.evals[:, :, :, 0], show=True)
-                    # Save everything
-                    nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff), '_evecs.nii.gz')
-                    nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff), '_evals.nii.gz')
-                    nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + 'fa.nii.gz')
-
-                    # Compute DTI NLLS
-                    tenmodel = TensorModel(gtab, fit_method="NLLS")
-                    tenfit = tenmodel.fit(data)
-                    filename = wd + tag + fname + '_DTINLLS'
-                    screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png", show=True)
-                    screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png", tenfit.evals[:, :, :, 0], show=True)
-                    # Save everything
-                    nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff), '_evecs.nii.gz')
-                    nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff), '_evals.nii.gz')
-                    nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + 'fa.nii.gz')
-
-                    #    # Compute DTI RESTORE
-                    #    tenmodel = TensorModel(gtab, fit_method="RT")
-                    #    tenfit = tenmodel.fit(data)
-                    #    filename = wd + tag + fname + '_DTIRESTORE'
-                    #    screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png", show=True)
-                    #    screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png", tenfit.evals[:, :, :, 0], show=True)
-                    #    # Save everything
-                    #    nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff), '_evecs.nii.gz')
-                    #    nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff), '_evals.nii.gz')
-                    #    nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + 'fa.nii.gz')
-
-                    # Compute DTI REKINDLE
+    # Get data from MASSIVE or simulations
+    # Example of loop over all samplings
+    for S in [2, 3, 4, 5]:
+        for N in [30, 60, 90]:
+            shell_permu = [list(i) for i in set([i for i in itertools.permutations(S*[1] + (5-S)*[0])])]
+            for shells in shell_permu:
+                list_order = [0, 1, 2]
+                if S == 1:
+                    list_order = [0]
+                for order in list_order:
+                    for it in [0]:
+#                        wd = 'D:/H_schijf/Data/MASSIVE/Processed/Analysis/GradSamplingB0/'
+                        fname = make_name(S, N, shells, order, it)
+                        bvals, bvecs = read_bvals_bvecs(inputfolder + 'grad/grad_' + fname + '.bval',
+                                                        inputfolder + 'grad/grad_' + fname + '.bvec')
+                        vol = nib.load(inputfolder + 'data/data_' + fname + '.nii.gz')
+                        data = vol.get_data()
+                        aff  = vol.get_affine()
+                        hdr  = vol.get_header()
+                        gtab = gradient_table(bvals=bvals, bvecs=bvecs,
+                                              big_delta=51.6, small_delta=32.8, b0_threshold=0.5)
+#                        tag = 'img/'
+                        mask = np.ones([1, 1, 1], dtype='bool')
 
 
-                    if S == 1:
-                        if N >= 45:
-                            CSD_sh_order = 8
-                            Qball_sh_order = 8
-                            CSA_sh_order = 4
-                        elif N >= 28 and N < 45:
-                            CSD_sh_order = 6
-                            Qball_sh_order = 6
-                            CSA_sh_order = 4
-                        elif N >= 15 and N < 28:
-                            CSD_sh_order = 4
-                            Qball_sh_order = 4
-                            CSA_sh_order = 4
-                        # Compute CSD
-                        # Calibrate RF on whole or partial data?
-                        response = (np.array([0.0015, 0.0003, 0.0003]), S0)
+                        # Set parameters
+                        _where_b0s = lazy_index(gtab.b0s_mask)
+                        S0 = np.mean(data[:, :, :, _where_b0s])
 
-                        csd_model = ConstrainedSphericalDeconvModel(gtab, response, sh_order=CSD_sh_order)
-                        peaks_csd = peaks_from_model(model=csd_model,
-                                     data=data,
-                                     sphere=sphere,
-                                     relative_peak_threshold=.1,
-                                     min_separation_angle=25,
-                                     parallel=False,
-                                     npeaks=5,
-                                     return_sh=True,
-                                     normalize_peaks=False,
-                                     return_odf=True,
-                                     sh_order=CSD_sh_order)
-                        filename = wd + tag + fname + '_CSD'
-
-                        nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs), axis=-1) > 0, axis=-1).ravel()
-                        print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
-
-                        screenshot_odf(peaks_csd.odf, sphere, filename + "_odf.png", show=True)
-                        screenshot_peaks(peaks_csd.peak_dirs, filename + "_peaks.png", peaks_csd.peak_values, show=True)
+                        # Compute DTI LLS
+                        tenmodel = TensorModel(gtab, fit_method="LS")
+                        tenfit = tenmodel.fit(data)
+                        filename = outputfolder + fname + '_DTILLS'
+                        screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png", show=True)
+                        screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png",
+                                         tenfit.evals[:, :, :, 0], show=True)
                         # Save everything
-                        nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'), aff), filename + 'fodf.nii.gz')
-                        nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd), aff), filename + 'peaks.nii.gz')
-                        nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff),
+                        '_evecs.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff),
+                        '_evals.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + 'fa.nii.gz')
 
-
-                        # Compute Qball
-                        qball_model = QballModel(gtab, sh_order=Qball_sh_order)
-                        peaks_qball = peaks_from_model(model=qball_model,
-                                       data=data,
-                                       sphere=sphere,
-                                       relative_peak_threshold=.1,
-                                       min_separation_angle=25,
-                                       parallel=False,
-                                       npeaks=5,
-                                       return_sh=True,
-                                       normalize_peaks=False,
-                                       return_odf=True,
-                                       sh_order=Qball_sh_order)
-                        filename = wd + tag + fname + '_Qball'
-                        screenshot_odf(peaks_qball.odf, sphere, filename + "_odf.png", show=True)
-                        screenshot_peaks(peaks_qball.peak_dirs, filename + "_peaks.png", peaks_qball.peak_values,
-                         show=True)
+                        # Compute DTI WLLS
+                        tenmodel = TensorModel(gtab, fit_method="WLS")
+                        tenfit = tenmodel.fit(data)
+                        filename = outputfolder + fname + '_DTIWLLS'
+                        screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png",
+                                       show=True)
+                        screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png",
+                                         tenfit.evals[:, :, :, 0], show=True)
                         # Save everything
-                        nib.save(nib.Nifti1Image(peaks_qball.shm_coeff.astype('float32'), aff), filename + 'fodf.nii.gz')
-                        nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_qball), aff), filename + 'peaks.nii.gz')
-                        nib.save(nib.Nifti1Image(peaks_qball.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff),
+                        '_evecs.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff),
+                        '_evals.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff),
+                                 filename + 'fa.nii.gz')
 
-
-                        # Compute SDT
-                        # Calibrate RF on whole or partial data?
-                        ratio = 0.21197
-
-                        sdt_model = ConstrainedSDTModel(gtab, ratio=ratio, sh_order=Qball_sh_order)
-                        peaks_sdt = peaks_from_model(model=sdt_model,
-                                       data=data,
-                                       sphere=sphere,
-                                       relative_peak_threshold=.1,
-                                       min_separation_angle=25,
-                                       parallel=False,
-                                       npeaks=5,
-                                       return_sh=True,
-                                       normalize_peaks=False,
-                                       return_odf=True,
-                                       sh_order=Qball_sh_order)
-                        filename = wd + tag + fname + '_SDT'
-                        screenshot_odf(peaks_sdt.odf, sphere, filename + "_odf.png", show=True)
-                        screenshot_peaks(peaks_sdt.peak_dirs, filename + "_peaks.png", peaks_sdt.peak_values,
-                         show=True)
+                        # Compute DTI NLLS
+                        tenmodel = TensorModel(gtab, fit_method="NLLS")
+                        tenfit = tenmodel.fit(data)
+                        filename = outputfolder + fname + '_DTINLLS'
+                        screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png", show=True)
+                        screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png",
+                                         tenfit.evals[:, :, :, 0], show=True)
                         # Save everything
-                        nib.save(nib.Nifti1Image(peaks_sdt.shm_coeff.astype('float32'), aff), filename + 'fodf.nii.gz')
-                        nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_sdt), aff), filename + 'peaks.nii.gz')
-                        nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff),
+                        '_evecs.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff),
+                        '_evals.nii.gz')
+                        nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + 'fa.nii.gz')
+
+                        #    # Compute DTI RESTORE
+                        #    tenmodel = TensorModel(gtab, fit_method="RT")
+                        #    tenfit = tenmodel.fit(data)
+                        #    filename = outputfolder + fname + '_DTIRESTORE'
+                        #    screenshot_odf(tenfit.odf(sphere), sphere, filename + "_odf.png", show=True)
+                        #    screenshot_peaks(tenfit.evecs[:, :, :, :, 0], filename + "_peaks.png", tenfit.evals[:, :, :, 0], show=True)
+                        #    # Save everything
+                        #    nib.save(nib.Nifti1Image(tenfit.evecs.astype(np.float32), aff), '_evecs.nii.gz')
+                        #    nib.save(nib.Nifti1Image(tenfit.evals.astype(np.float32), aff), '_evals.nii.gz')
+                        #    nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + 'fa.nii.gz')
+
+                        # Compute DTI REKINDLE
 
 
-                        # Compute CSA
-                        csa_model = CsaOdfModel(gtab, sh_order=CSA_sh_order)
-                        peaks_csa = peaks_from_model(model=csa_model,
-                                     data=data,
-                                     sphere=sphere,
-                                     relative_peak_threshold=.1,
-                                     min_separation_angle=25,
-                                     parallel=False,
-                                     npeaks=5,
-                                     return_sh=True,
-                                     normalize_peaks=False,
-                                     return_odf=True,
-                                     sh_order=CSA_sh_order)
-                        filename = wd + tag + fname + '_CSA'
-                        screenshot_odf(peaks_csa.odf, sphere, filename + "_odf.png", show=True)
-                        screenshot_peaks(peaks_csa.peak_dirs, filename + "_peaks.png", peaks_csa.peak_values, show=True)
-                        # Save everything
-                        nib.save(nib.Nifti1Image(peaks_csa.shm_coeff.astype('float32'), aff), filename + 'fodf.nii.gz')
-                        nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csa), aff), filename + 'peaks.nii.gz')
-                        nib.save(nib.Nifti1Image(peaks_csa.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+                        if S == 1:
+                            if N >= 45:
+                                CSD_sh_order = 8
+                                Qball_sh_order = 8
+                                CSA_sh_order = 4
+                            elif N >= 28 and N < 45:
+                                CSD_sh_order = 6
+                                Qball_sh_order = 6
+                                CSA_sh_order = 4
+                            elif N >= 15 and N < 28:
+                                CSD_sh_order = 4
+                                Qball_sh_order = 4
+                                CSA_sh_order = 4
+                            # Compute CSD
+                            # Calibrate RF on whole or partial data?
+                            response = (np.array([0.0015, 0.0003, 0.0003]), S0)
 
+                            csd_model = ConstrainedSphericalDeconvModel(gtab, response,
+                                                                        sh_order=CSD_sh_order)
+                            peaks_csd = peaks_from_model(model=csd_model,
+                                         data=data,
+                                         sphere=sphere,
+                                         relative_peak_threshold=.1,
+                                         min_separation_angle=25,
+                                         parallel=False,
+                                         npeaks=5,
+                                         return_sh=True,
+                                         normalize_peaks=False,
+                                         return_odf=True,
+                                         sh_order=CSD_sh_order)
+                            filename = outputfolder + fname + '_CSD'
 
-                    if S >= 1:
-                        # Compute DKI LLS
+                            nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs), axis=-1) > 0,
+                                          axis=-1).ravel()
+                            print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2),
+                            "3 fibers", np.sum(nfib==3))
 
-                        # Compute DKI WLLS
-
-                        # Compute DKI NLLS
-
-                        # Compute DKI RESTORE
-
-                        # Compute DKI REKINDLE
-
-
-                        # Compute multi shell CSD
-                        response = (np.array([0.0015, 0.0003, 0.0003]), S0)
-                        peaks_csd = csd_ms(gtab=gtab, data=data, aff=aff, mask=mask, response=response, sphere=sphere, min_angle=25.0, relative_peak_th=0.1)
-                        if peaks_csd:
-                            filename = wd + tag + fname + '_msCSD'
-
-                            nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs), axis=-1) > 0, axis=-1).ravel()
-                            print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
-
-                            screenshot_odf(peaks_csd.odf, sphere, filename + "_odf.png", show=True)
-                            screenshot_peaks(peaks_csd.peak_dirs, filename + "_peaks.png", peaks_csd.peak_values, show=True)
+                            screenshot_odf(peaks_csd.odf, sphere, filename + "_odf.png",
+                                           show=True)
+                            screenshot_peaks(peaks_csd.peak_dirs, filename + "_peaks.png",
+                                             peaks_csd.peak_values, show=True)
                             # Save everything
-                            nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'), aff), filename + 'fodf.nii.gz')
-                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd), aff), filename + 'peaks.nii.gz')
-#                            nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'),
+                                                     aff), filename + 'fodf.nii.gz')
+                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd),
+                                                     aff), filename + 'peaks.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff),
+                                     filename + 'fodf_peak_indices.nii.gz')
 
 
-                        # Compute multi shell SDT
-                        ratio = 0.21197
-                        peaks_sdt = sdt_ms(gtab=gtab, data=data, aff=aff, mask=mask, ratio=ratio, sphere=sphere, min_angle=25.0, relative_peak_th=0.1)
-                        if peaks_sdt:
-                            filename = wd + tag + fname + '_msSDT'
-
-                            nfib = np.sum(np.sum(np.abs(peaks_sdt.peak_dirs), axis=-1) > 0, axis=-1).ravel()
-                            print("1 fiber", np.sum(nfib==1), "2 fibers", np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
-
-                            screenshot_odf(peaks_sdt.odf, sphere, filename + "_odf.png", show=True)
-                            screenshot_peaks(peaks_sdt.peak_dirs, filename + "_peaks.png", peaks_sdt.peak_values, show=True)
+                            # Compute Qball
+                            qball_model = QballModel(gtab, sh_order=Qball_sh_order)
+                            peaks_qball = peaks_from_model(model=qball_model,
+                                           data=data,
+                                           sphere=sphere,
+                                           relative_peak_threshold=.1,
+                                           min_separation_angle=25,
+                                           parallel=False,
+                                           npeaks=5,
+                                           return_sh=True,
+                                           normalize_peaks=False,
+                                           return_odf=True,
+                                           sh_order=Qball_sh_order)
+                            filename = outputfolder + fname + '_Qball'
+                            screenshot_odf(peaks_qball.odf, sphere, filename + "_odf.png",
+                                           show=True)
+                            screenshot_peaks(peaks_qball.peak_dirs, filename + "_peaks.png",
+                                             peaks_qball.peak_values,
+                             show=True)
                             # Save everything
-                            nib.save(nib.Nifti1Image(peaks_sdt.shm_coeff.astype('float32'), aff), filename + 'fodf.nii.gz')
-                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_sdt), aff), filename + 'peaks.nii.gz')
-#                            nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_qball.shm_coeff.astype('float32'),
+                                                     aff), filename + 'fodf.nii.gz')
+                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_qball),
+                                                     aff), filename + 'peaks.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_qball.peak_indices, aff),
+                                     filename + 'fodf_peak_indices.nii.gz')
 
+
+                            # Compute SDT
+                            # Calibrate RF on whole or partial data?
+                            ratio = 0.21197
+
+                            sdt_model = ConstrainedSDTModel(gtab, ratio=ratio, sh_order=Qball_sh_order)
+                            peaks_sdt = peaks_from_model(model=sdt_model,
+                                           data=data,
+                                           sphere=sphere,
+                                           relative_peak_threshold=.1,
+                                           min_separation_angle=25,
+                                           parallel=False,
+                                           npeaks=5,
+                                           return_sh=True,
+                                           normalize_peaks=False,
+                                           return_odf=True,
+                                           sh_order=Qball_sh_order)
+                            filename = outputfolder + fname + '_SDT'
+                            screenshot_odf(peaks_sdt.odf, sphere, filename + "_odf.png",
+                                           show=True)
+                            screenshot_peaks(peaks_sdt.peak_dirs, filename + "_peaks.png",
+                                             peaks_sdt.peak_values,
+                             show=True)
+                            # Save everything
+                            nib.save(nib.Nifti1Image(peaks_sdt.shm_coeff.astype('float32'), aff),
+                                     filename + 'fodf.nii.gz')
+                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_sdt), aff),
+                                     filename + 'peaks.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff),
+                                     filename + 'fodf_peak_indices.nii.gz')
+
+
+                            # Compute CSA
+                            csa_model = CsaOdfModel(gtab, sh_order=CSA_sh_order)
+                            peaks_csa = peaks_from_model(model=csa_model,
+                                         data=data,
+                                         sphere=sphere,
+                                         relative_peak_threshold=.1,
+                                         min_separation_angle=25,
+                                         parallel=False,
+                                         npeaks=5,
+                                         return_sh=True,
+                                         normalize_peaks=False,
+                                         return_odf=True,
+                                         sh_order=CSA_sh_order)
+                            filename = outputfolder + fname + '_CSA'
+                            screenshot_odf(peaks_csa.odf, sphere, filename + "_odf.png",
+                                           show=True)
+                            screenshot_peaks(peaks_csa.peak_dirs, filename + "_peaks.png",
+                                             peaks_csa.peak_values, show=True)
+                            # Save everything
+                            nib.save(nib.Nifti1Image(peaks_csa.shm_coeff.astype('float32'),
+                                                     aff), filename + 'fodf.nii.gz')
+                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csa),
+                                                     aff), filename + 'peaks.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_csa.peak_indices, aff),
+                                     filename + 'fodf_peak_indices.nii.gz')
+
+
+                        if S >= 1:
+                            # Compute DKI LLS
+
+                            # Compute DKI WLLS
+
+                            # Compute DKI NLLS
+
+                            # Compute DKI RESTORE
+
+                            # Compute DKI REKINDLE
+
+
+                            # Compute multi shell CSD
+                            response = (np.array([0.0015, 0.0003, 0.0003]), S0)
+                            peaks_csd = csd_ms(gtab=gtab, data=data, aff=aff,
+                                               mask=mask, response=response,
+                                               sphere=sphere, min_angle=25.0, relative_peak_th=0.1)
+                            if peaks_csd:
+                                filename = outputfolder + fname + '_msCSD'
+
+                                nfib = np.sum(np.sum(np.abs(peaks_csd.peak_dirs),
+                                                     axis=-1) > 0, axis=-1).ravel()
+                                print("1 fiber", np.sum(nfib==1), "2 fibers",
+                                      np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
+
+                                screenshot_odf(peaks_csd.odf, sphere, filename + "_odf.png",
+                                               show=True)
+                                screenshot_peaks(peaks_csd.peak_dirs, filename + "_peaks.png",
+                                                 peaks_csd.peak_values, show=True)
+                                # Save everything
+                                nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'),
+                                                         aff), filename + 'fodf.nii.gz')
+                                nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd),
+                                                         aff), filename + 'peaks.nii.gz')
+    #                            nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+
+
+                            # Compute multi shell SDT
+                            ratio = 0.21197
+                            peaks_sdt = sdt_ms(gtab=gtab, data=data, aff=aff,
+                                               mask=mask, ratio=ratio, sphere=sphere, min_angle=25.0, relative_peak_th=0.1)
+                            if peaks_sdt:
+                                filename = outputfolder + fname + '_msSDT'
+
+                                nfib = np.sum(np.sum(np.abs(peaks_sdt.peak_dirs),
+                                                     axis=-1) > 0, axis=-1).ravel()
+                                print("1 fiber", np.sum(nfib==1), "2 fibers",
+                                      np.sum(nfib==2), "3 fibers", np.sum(nfib==3))
+
+                                screenshot_odf(peaks_sdt.odf, sphere, filename + "_odf.png",
+                                               show=True)
+                                screenshot_peaks(peaks_sdt.peak_dirs, filename + "_peaks.png",
+                                                 peaks_sdt.peak_values, show=True)
+                                # Save everything
+                                nib.save(nib.Nifti1Image(peaks_sdt.shm_coeff.astype('float32'),
+                                                         aff), filename + 'fodf.nii.gz')
+                                nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_sdt),
+                                                         aff), filename + 'peaks.nii.gz')
+    #                            nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
+
+                            # Compute SHORE
+                            radial_order = 4
+                            zeta = 700
+                            lambdaN = 1e-8
+                            lambdaL = 1e-8
+                            shore_model = ShoreModel(gtab, radial_order=radial_order,
+                                             zeta=zeta, lambdaN=lambdaN, lambdaL=lambdaL)
+                            peaks_shore = peaks_from_model(model=shore_model,
+                                           data=data,
+                                           sphere=sphere,
+                                           relative_peak_threshold=.1,
+                                           min_separation_angle=25,
+                                           parallel=False,
+                                           npeaks=5,
+                                           return_sh=True,
+                                           normalize_peaks=False,
+                                           return_odf=True,
+                                           sh_order=8)
+                            filename = outputfolder + fname + '_SHORE'
+                            screenshot_odf(peaks_shore.odf, sphere, filename + "_odf.png",
+                                           show=True)
+                            screenshot_peaks(peaks_shore.peak_dirs, filename + "_peaks.png",
+                                             peaks_shore.peak_values,
+                             show=True)
+                            # Save everything
+                            nib.save(nib.Nifti1Image(peaks_shore.shm_coeff.astype('float32'),
+                                                     aff), filename + 'fodf.nii.gz')
+                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_shore),
+                                                     aff), filename + 'peaks.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_shore.peak_indices, aff),
+                                     filename + 'fodf_peak_indices.nii.gz')
+
+
+if __name__ == "__main__":
+    main()
