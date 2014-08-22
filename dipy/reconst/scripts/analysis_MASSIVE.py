@@ -4,7 +4,7 @@ import numpy as np
 import nibabel as nib
 
 from dipy.reconst.csdeconv import (ConstrainedSphericalDeconvModel,
-                                   ConstrainedSDTModel)
+                                   ConstrainedSDTModel, odf_sh_to_sharp)
 from dipy.reconst.shm import (QballModel, CsaOdfModel, lazy_index)
 from dipy.data import get_sphere
 from dipy.reconst.peaks import reshape_peaks_for_visualization
@@ -173,27 +173,6 @@ def main():
 
 
                         if S == 1:
-                            # Compute CSD
-                            # Calibrate RF on whole or partial data?
-                            response = (np.array([0.0015, 0.0003, 0.0003]), S0)
-                            sh_order = decision(N, 'CSD')
-                            csd_model = ConstrainedSphericalDeconvModel(gtab, response,
-                                                                        sh_order=sh_order)
-                            peaks_csd = pfm(model=csd_model, data=data, mask=mask,
-                                            sphere=sphere, parallel=False, sh_order=sh_order)
-                            filename = outputfolder + fname + '_CSD'
-                            screenshot_odf(peaks_csd.odf, sphere, filename + "_odf.png",
-                                           show=show)
-                            screenshot_peaks(peaks_csd.peak_dirs, filename + "_peaks.png",
-                                             peaks_csd.peak_values, show=show)
-                            nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'),
-                                                     aff), filename + 'fodf.nii.gz')
-                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd),
-                                                     aff), filename + 'peaks.nii.gz')
-                            nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff),
-                                     filename + 'fodf_peak_indices.nii.gz')
-
-
                             # Compute Qball
                             sh_order = decision(N, 'Qball')
                             qball_model = QballModel(gtab, sh_order=sh_order)
@@ -262,7 +241,7 @@ def main():
                             # Compute DKI REKINDLE
 
 
-                            # Compute multi shell CSD
+                            # Compute multi shell CSD max_abs
                             response = (np.array([0.0015, 0.0003, 0.0003]), S0)
                             peaks_csd = csd_ms(gtab=gtab, data=data, aff=aff,
                                                mask=mask, response=response,
@@ -280,7 +259,28 @@ def main():
     #                            nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff), filename + 'fodf_peak_indices.nii.gz')
 
 
-                            # Compute multi shell SDT
+                            # Compute single/multi shell CSD
+                            # Calibrate RF on whole or partial data?
+                            response = (np.array([0.0015, 0.0003, 0.0003]), S0)
+                            sh_order = decision(N, 'CSD')
+                            csd_model = ConstrainedSphericalDeconvModel(gtab, response,
+                                                                        sh_order=sh_order)
+                            peaks_csd = pfm(model=csd_model, data=data, mask=mask,
+                                            sphere=sphere, parallel=False, sh_order=sh_order)
+                            filename = outputfolder + fname + '_CSD'
+                            screenshot_odf(peaks_csd.odf, sphere, filename + "_odf.png",
+                                           show=show)
+                            screenshot_peaks(peaks_csd.peak_dirs, filename + "_peaks.png",
+                                             peaks_csd.peak_values, show=show)
+                            nib.save(nib.Nifti1Image(peaks_csd.shm_coeff.astype('float32'),
+                                                     aff), filename + 'fodf.nii.gz')
+                            nib.save(nib.Nifti1Image(reshape_peaks_for_visualization(peaks_csd),
+                                                     aff), filename + 'peaks.nii.gz')
+                            nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff),
+                                     filename + 'fodf_peak_indices.nii.gz')
+
+
+                            # Compute multi shell SDT max_abs
                             ratio = 0.21197
                             peaks_sdt = sdt_ms(gtab=gtab, data=data, aff=aff,
                                                mask=mask, ratio=ratio, sphere=sphere, min_angle=25.0, relative_peak_th=0.1)
@@ -317,6 +317,12 @@ def main():
                                                          aff), filename + 'peaks.nii.gz')
                                 nib.save(nib.Nifti1Image(peaks_shore.peak_indices, aff),
                                          filename + 'fodf_peak_indices.nii.gz')
+
+                                # Compute SHORED
+#                                fodf_sh = odf_sh_to_sharp(peaks_shore.shm_coeff, sphere,
+#                                                          basis='mrtrix', ratio=ratio,
+#                                                          sh_order=sh_order, lambda_=1., tau=0.1,
+#                                                          r2_term=True)
 
 
 if __name__ == "__main__":
