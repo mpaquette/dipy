@@ -159,6 +159,7 @@ def main(**extra_args):
                           'dipy.reconst',
                           'dipy.reconst.benchmarks',
                           'dipy.reconst.tests',
+                          'dipy.reconst.scripts',
                           'dipy.io',
                           'dipy.io.tests',
                           'dipy.viz',
