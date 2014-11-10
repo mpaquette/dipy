@@ -405,8 +405,8 @@ def main():
                     #                          aff), filename + noisetag + '_peaks.nii.gz')
                     # # nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff), filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-
-                    msCSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff.squeeze()
+                    tmp = peaks_csd.shm_coeff.shape[-1]
+                    msCSD_fodf[:, i_sig, i_seed, :tmp] = peaks_csd.shm_coeff.squeeze()
                     msCSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd).squeeze()
                     # msCSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices
 
@@ -428,7 +428,8 @@ def main():
                     #                          aff), filename + noisetag + '_peaks.nii.gz')
                     # nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff), filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-                    msSDT_fodf[:, i_sig, i_seed] = peaks_sdt.shm_coeff.squeeze()
+                    tmp = peaks_sdt.shm_coeff.shape[-1]
+                    msSDT_fodf[:, i_sig, i_seed, :tmp] = peaks_sdt.shm_coeff.squeeze()
                     msSDT_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_sdt).squeeze()
                     # msSDT_ind[:, i_sig, i_seed] = peaks_sdt.peak_indices
 
