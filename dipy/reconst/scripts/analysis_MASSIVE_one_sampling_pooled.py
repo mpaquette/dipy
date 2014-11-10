@@ -406,9 +406,9 @@ def main():
                     # # nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff), filename + noisetag + '_fodf_peak_indices.nii.gz')
 
 
-                msCSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff.squeeze()
-                msCSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd).squeeze()
-                # msCSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices
+                    msCSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff.squeeze()
+                    msCSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd).squeeze()
+                    # msCSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices
 
                 # Compute multi shell SDT max_abs
                 ratio = 0.21197
@@ -428,9 +428,9 @@ def main():
                     #                          aff), filename + noisetag + '_peaks.nii.gz')
                     # nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff), filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-                msSDT_fodf[:, i_sig, i_seed] = peaks_sdt.shm_coeff.squeeze()
-                msSDT_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_sdt).squeeze()
-                # msSDT_ind[:, i_sig, i_seed] = peaks_sdt.peak_indices
+                    msSDT_fodf[:, i_sig, i_seed] = peaks_sdt.shm_coeff.squeeze()
+                    msSDT_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_sdt).squeeze()
+                    # msSDT_ind[:, i_sig, i_seed] = peaks_sdt.peak_indices
 
 
             # Compute single/multi shell CSD
@@ -535,12 +535,12 @@ def main():
         filename = outputfolder + fname + '_msSDT'
         nib.save(nib.Nifti1Image(msSDT_fodf.astype('float32'), aff), filename + '_fodf.nii.gz')
         nib.save(nib.Nifti1Image(msSDT_peaks.astype('float32'), aff), filename + '_peaks.nii.gz')
-        nib.save(nib.Nifti1Image(msSDT_ind, aff), filename + '_fodf_peak_indices.nii.gz')
+        # nib.save(nib.Nifti1Image(msSDT_ind, aff), filename + '_fodf_peak_indices.nii.gz')
 
         filename = outputfolder + fname + '_msCSD'
         nib.save(nib.Nifti1Image(msCSD_fodf.astype('float32'), aff), filename + '_fodf.nii.gz')
         nib.save(nib.Nifti1Image(msCSD_peaks.astype('float32'), aff), filename + '_peaks.nii.gz')
-        nib.save(nib.Nifti1Image(msCSD_ind, aff), filename + '_fodf_peak_indices.nii.gz')
+        # nib.save(nib.Nifti1Image(msCSD_ind, aff), filename + '_fodf_peak_indices.nii.gz')
 
 
 if __name__ == "__main__":
