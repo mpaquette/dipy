@@ -301,7 +301,8 @@ def main():
 
             if S == 1:
                 # Compute Qball
-                sh_order = decision(N, 'Qball')
+                # sh_order = decision(N, 'Qball')
+                sh_order = sh_order_csd
                 qball_model = QballModel(gtab, sh_order=sh_order, min_signal = min_signal)
                 peaks_qball = pfm(model=qball_model, data=data, mask=mask,
                                 sphere=sphere, parallel=False, sh_order=sh_order)
@@ -327,7 +328,8 @@ def main():
                 # Compute SDT
                 # Calibrate RF on whole or partial data?
                 ratio = 0.21197
-                sh_order = decision(N, 'SDT')
+                # sh_order = decision(N, 'SDT')
+                sh_order = sh_order_csd
                 sdt_model = ConstrainedSDTModel(gtab, ratio=ratio, sh_order=sh_order)
                 peaks_sdt = pfm(model=sdt_model, data=data, mask=mask,
                                 sphere=sphere, parallel=False, sh_order=sh_order)
@@ -351,7 +353,8 @@ def main():
 
 
                 # Compute CSA
-                sh_order = decision(N, 'CSA')
+                # sh_order = decision(N, 'CSA')
+                sh_order = sh_order_csa
                 csa_model = CsaOdfModel(gtab, sh_order=sh_order, min_signal = min_signal)
                 peaks_csa = pfm(model=csa_model, data=data, mask=mask,
                                 sphere=sphere, parallel=False, sh_order=sh_order)
@@ -436,7 +439,8 @@ def main():
             # Compute single/multi shell CSD
             # Calibrate RF on whole or partial data?
             response = (np.array([0.0015, 0.0003, 0.0003]), S0)
-            sh_order = decision(N, 'CSD')
+            # sh_order = decision(N, 'CSD')
+            sh_order = sh_order_csd
             csd_model = ConstrainedSphericalDeconvModel(gtab, response,
                                                         sh_order=sh_order)
             peaks_csd = pfm(model=csd_model, data=data, mask=mask,
