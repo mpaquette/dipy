@@ -146,6 +146,9 @@ def main():
     n_trial = args.trial
     skip_trial = args.skip
 
+    print('S = {}, N = {}, shells = {}, ord = {}, it = {}'.format(S, N, shells, order, it))
+    print('tr = {}, skip = {}, sigma = {}'.format(n_trial, skip_trial, sigma))
+
 
     fname = make_name(S, N, shells, order, it)
     bvals, bvecs = read_bvals_bvecs(gradfolder + sampName + fname + '.bvals',
