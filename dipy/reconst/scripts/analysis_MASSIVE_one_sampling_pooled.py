@@ -195,7 +195,7 @@ def main():
         SDT_ind = np.zeros((21, len(sigma), n_trial - skip_trial, hardcoded_npeaks_max))
 
         sh_order_csa = decision(N, 'CSA')
-        coef_csa = round( 0.5 * (sh_order_csd + 1) * (sh_order_csd + 2))
+        coef_csa = round( 0.5 * (sh_order_csa + 1) * (sh_order_csa + 2))
         CSA_fodf = np.zeros((21, len(sigma), n_trial - skip_trial, coef_csa))
         CSA_peaks = np.zeros((21, len(sigma), n_trial - skip_trial, 3*hardcoded_npeaks_max))
         CSA_ind = np.zeros((21, len(sigma), n_trial - skip_trial, hardcoded_npeaks_max))
@@ -301,8 +301,7 @@ def main():
 
             if S == 1:
                 # Compute Qball
-                # sh_order = decision(N, 'Qball')
-                sh_order = sh_order_csd
+                sh_order = decision(N, 'Qball')
                 qball_model = QballModel(gtab, sh_order=sh_order, min_signal = min_signal)
                 peaks_qball = pfm(model=qball_model, data=data, mask=mask,
                                 sphere=sphere, parallel=False, sh_order=sh_order)
@@ -328,8 +327,7 @@ def main():
                 # Compute SDT
                 # Calibrate RF on whole or partial data?
                 ratio = 0.21197
-                # sh_order = decision(N, 'SDT')
-                sh_order = sh_order_csd
+                sh_order = decision(N, 'SDT')
                 sdt_model = ConstrainedSDTModel(gtab, ratio=ratio, sh_order=sh_order)
                 peaks_sdt = pfm(model=sdt_model, data=data, mask=mask,
                                 sphere=sphere, parallel=False, sh_order=sh_order)
@@ -353,8 +351,7 @@ def main():
 
 
                 # Compute CSA
-                # sh_order = decision(N, 'CSA')
-                sh_order = sh_order_csa
+                sh_order = decision(N, 'CSA')
                 csa_model = CsaOdfModel(gtab, sh_order=sh_order, min_signal = min_signal)
                 peaks_csa = pfm(model=csa_model, data=data, mask=mask,
                                 sphere=sphere, parallel=False, sh_order=sh_order)
@@ -439,8 +436,7 @@ def main():
             # Compute single/multi shell CSD
             # Calibrate RF on whole or partial data?
             response = (np.array([0.0015, 0.0003, 0.0003]), S0)
-            # sh_order = decision(N, 'CSD')
-            sh_order = sh_order_csd
+            sh_order = decision(N, 'CSD')
             csd_model = ConstrainedSphericalDeconvModel(gtab, response,
                                                         sh_order=sh_order)
             peaks_csd = pfm(model=csd_model, data=data, mask=mask,
