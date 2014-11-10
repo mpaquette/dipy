@@ -457,7 +457,7 @@ def main():
 
             CSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff.squeeze()
             CSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd).squeeze()
-            CSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices.squeeze()
+            # CSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices.squeeze()
 
 
 
