@@ -242,9 +242,9 @@ def main():
             # filename + noisetag + '_evals.nii.gz')
             # nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + noisetag + '_fa.nii.gz')
 
-            DTILLS_evecs[:, i_sig, i_seed] = tenfit.evecs
-            DTILLS_evals[:, i_sig, i_seed] = tenfit.evals
-            DTILLS_fa[:, i_sig, i_seed] = tenfit.fa
+            DTILLS_evecs[:, i_sig, i_seed] = tenfit.evecs.squeeze()
+            DTILLS_evals[:, i_sig, i_seed] = tenfit.evals.squeeze()
+            DTILLS_fa[:, i_sig, i_seed] = tenfit.fa.squeeze()
 
             # Compute DTI WLLS
             tenmodel = TensorModel(gtab, fit_method="WLS", min_signal = min_signal)
@@ -263,9 +263,9 @@ def main():
             # nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff),
             #          filename + noisetag + '_fa.nii.gz')
 
-            DTIWLLS_evecs[:, i_sig, i_seed] = tenfit.evecs
-            DTIWLLS_evals[:, i_sig, i_seed] = tenfit.evals
-            DTIWLLS_fa[:, i_sig, i_seed] = tenfit.fa
+            DTIWLLS_evecs[:, i_sig, i_seed] = tenfit.evecs.squeeze()
+            DTIWLLS_evals[:, i_sig, i_seed] = tenfit.evals.squeeze()
+            DTIWLLS_fa[:, i_sig, i_seed] = tenfit.fa.squeeze()
 
             # Compute DTI NLLS
             tenmodel = TensorModel(gtab, fit_method="NLLS", min_signal = min_signal)
@@ -282,9 +282,9 @@ def main():
             # filename + noisetag + '_evals.nii.gz')
             # nib.save(nib.Nifti1Image(tenfit.fa.astype(np.float32), aff), filename + noisetag + '_fa.nii.gz')
 
-            DTINLLS_evecs[:, i_sig, i_seed] = tenfit.evecs
-            DTINLLS_evals[:, i_sig, i_seed] = tenfit.evals
-            DTINLLS_fa[:, i_sig, i_seed] = tenfit.fa
+            DTINLLS_evecs[:, i_sig, i_seed] = tenfit.evecs.squeeze()
+            DTINLLS_evals[:, i_sig, i_seed] = tenfit.evals.squeeze()
+            DTINLLS_fa[:, i_sig, i_seed] = tenfit.fa.squeeze()
 
             #    # Compute DTI RESTORE
             #    tenmodel = TensorModel(gtab, fit_method="RT")
@@ -319,9 +319,9 @@ def main():
                 # nib.save(nib.Nifti1Image(peaks_qball.peak_indices, aff),
                 #          filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-                Qball_fodf[:, i_sig, i_seed] = peaks_qball.shm_coeff
-                Qball_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_qball)
-                Qball_ind[:, i_sig, i_seed] = peaks_qball.peak_indices
+                Qball_fodf[:, i_sig, i_seed] = peaks_qball.shm_coeff.squeeze()
+                Qball_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_qball).squeeze()
+                Qball_ind[:, i_sig, i_seed] = peaks_qball.peak_indices.squeeze()
 
 
                 # Compute SDT
@@ -345,9 +345,9 @@ def main():
                 # nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff),
                 #          filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-                SDT_fodf[:, i_sig, i_seed] = peaks_sdt.shm_coeff
-                SDT_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_sdt)
-                SDT_ind[:, i_sig, i_seed] = peaks_sdt.peak_indices
+                SDT_fodf[:, i_sig, i_seed] = peaks_sdt.shm_coeff.squeeze()
+                SDT_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_sdt).squeeze()
+                SDT_ind[:, i_sig, i_seed] = peaks_sdt.peak_indices.squeeze()
 
 
                 # Compute CSA
@@ -369,9 +369,9 @@ def main():
                 # nib.save(nib.Nifti1Image(peaks_csa.peak_indices, aff),
                 #          filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-                CSA_fodf[:, i_sig, i_seed] = peaks_csa.shm_coeff
-                CSA_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csa)
-                CSA_ind[:, i_sig, i_seed] = peaks_csa.peak_indices
+                CSA_fodf[:, i_sig, i_seed] = peaks_csa.shm_coeff.squeeze()
+                CSA_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csa).squeeze()
+                CSA_ind[:, i_sig, i_seed] = peaks_csa.peak_indices.squeeze()
 
 
             if S > 1:
@@ -406,8 +406,8 @@ def main():
                     # # nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff), filename + noisetag + '_fodf_peak_indices.nii.gz')
 
 
-                msCSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff
-                msCSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd)
+                msCSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff.squeeze()
+                msCSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd).squeeze()
                 # msCSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices
 
                 # Compute multi shell SDT max_abs
@@ -428,8 +428,8 @@ def main():
                     #                          aff), filename + noisetag + '_peaks.nii.gz')
                     # nib.save(nib.Nifti1Image(peaks_sdt.peak_indices, aff), filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-                msSDT_fodf[:, i_sig, i_seed] = peaks_sdt.shm_coeff
-                msSDT_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_sdt)
+                msSDT_fodf[:, i_sig, i_seed] = peaks_sdt.shm_coeff.squeeze()
+                msSDT_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_sdt).squeeze()
                 # msSDT_ind[:, i_sig, i_seed] = peaks_sdt.peak_indices
 
 
@@ -455,9 +455,9 @@ def main():
             # nib.save(nib.Nifti1Image(peaks_csd.peak_indices, aff),
             #          filename + noisetag + '_fodf_peak_indices.nii.gz')
 
-            CSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff
-            CSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd)
-            CSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices
+            CSD_fodf[:, i_sig, i_seed] = peaks_csd.shm_coeff.squeeze()
+            CSD_peaks[:, i_sig, i_seed] = reshape_peaks_for_visualization(peaks_csd).squeeze()
+            CSD_ind[:, i_sig, i_seed] = peaks_csd.peak_indices.squeeze()
 
 
 
