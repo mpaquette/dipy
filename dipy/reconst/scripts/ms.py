@@ -69,7 +69,7 @@ def csd_ms(gtab, data, aff, mask, response, sphere, min_angle=15.0,
     new_peaks.odf = odf
 
     # Custom peaks extraction
-    new_peaks = peak_extract(new_peaks, odf, mask, sphere, npeaks=3, normalize_peaks=True,
+    new_peaks = peak_extract(new_peaks, odf, mask, sphere, npeaks=5, normalize_peaks=True,
                              relative_peak_th=relative_peak_th, min_angle=min_angle)
 
     return new_peaks
@@ -118,7 +118,7 @@ def sdt_ms(gtab, data, aff, mask, ratio, sphere, min_angle=25.0, relative_peak_t
     new_peaks.odf = odf
 
     # Custom peaks extraction
-    new_peaks = peak_extract(new_peaks, odf, mask, sphere, npeaks=3, normalize_peaks=True,
+    new_peaks = peak_extract(new_peaks, odf, mask, sphere, npeaks=5, normalize_peaks=True,
                              relative_peak_th=relative_peak_th, min_angle=min_angle)
 
     return new_peaks

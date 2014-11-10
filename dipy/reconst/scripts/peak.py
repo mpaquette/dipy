@@ -21,12 +21,12 @@ def pfm(model, data, mask, sphere, parallel=True, min_angle=25.0, relative_peak_
                              normalize_peaks=False,
                              sh_order=sh_order,
                              sh_basis_type='mrtrix',
-                             npeaks=3,
+                             npeaks=5,
                              parallel=parallel)
     return peaks
 
 
-def peak_extract(new_peaks, odf, mask, sphere, npeaks=3, normalize_peaks=True,
+def peak_extract(new_peaks, odf, mask, sphere, npeaks=5, normalize_peaks=True,
                  relative_peak_th=0.35, min_angle=15):
 
     global_max = -np.inf
