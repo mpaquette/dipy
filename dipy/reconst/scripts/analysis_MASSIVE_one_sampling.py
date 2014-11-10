@@ -162,7 +162,7 @@ def main():
             n_tr = 1
         else:
             n_tr = n_trial
-        for seed in range(n_tr):
+        for seed in range(1,n_tr+1):
 
             noisetag = '_sig-{:.3f}_tr-{}'.format(sig, seed)
 
