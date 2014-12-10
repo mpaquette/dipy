@@ -15,7 +15,7 @@ class DiffusionSpectrumModel(OdfModel, Cache):
                  r_start=2.1,
                  r_end=6.,
                  r_step=0.2,
-                 filter_width=30,
+                 filter_width=32,
                  normalize_peaks=False):
         r""" Diffusion Spectrum Imaging
 
