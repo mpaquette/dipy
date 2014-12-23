@@ -63,22 +63,91 @@ class FreeWaterTensorModel():
 
             return bounds
 
-        def grid_search(N, bounds):
-            for i in range(bounds.shape):
-                np.linspace(bounds[i][0], bounds[i][1], N[i])
 
         if self.init_type == 0:
             # Fixed parameters initialization
             x0 = np.array([0.8, 0.8, 0.2, 90.0, 90.0, 0.2])
 
         elif self.init_type == 1:
-            # loop over a grid of init_N configuration
+            # loop over a grid of configuration
             x0s = grid_search(N = self.init_N, bounds = bounds())
+
+            best_x0 = np.array([0.8, 0.8, 0.2, 90.0, 90.0, 0.2])
+            best_res = residual(best_x0)
+
+            for x in x0s:
+                res = residual(x)
+                if res < best_res:
+                    best_res = res
+                    best_x0 = x
+
+            x0 = best_x0
 
         else :
             raise NotImplementedError, 'Initialization type = {} Not Implemented'.format(self.init_type)
 
+        param, fitQual, _ = l_bfgs_b(residual, 
+                            x0 = x0, 
+                            fprime=None, 
+                            args=(), 
+                            approx_grad=True,  
+                            bounds=bounds(), 
+                            m=10, 
+                            factr=1e0, 
+                            pgtol=1e-16, 
+                            epsilon=1e-8, 
+                            iprint=1, 
+                            # iprint=-1, 
+                            maxfun=1000, 
+                            maxiter=1000, 
+                            disp=None, 
+                            callback=None)
 
+        est_data, stick = _model(self.gtab, param)
+
+        return FreeWaterTensorFit(self, param, fitQual, est_data, stick)
+
+class FreeWaterTensorFit():
+    def __init__(self, model, param, fitQual, est_data, stick):
+        self.model = model
+        self.gtab = model.gtab
+
+        self.init_type = model.init_type
+        self.init_N = model.init_N
+
+        self.param = param
+        self.fitQual = fitQual
+        self.dir = stick
+        self.est_data = est_data
+
+    def dir(self):
+        return self.dir
+
+    def fitQual(self):
+        return self.fitQual
+
+    def est_data(self):
+        return self.est_data
+
+    def param(self):
+        return self.param
+
+    def prolate_evals(self):
+        Dfree = 0.002299
+        lam1 = self.param[1] * Dfree
+        lam2 = self.param[2] * lam1
+        return np.array([lam1, lam2, lam2])
+
+    def iso_evals(self):
+        Dfree = 0.002299
+        lam1 = self.param[0] * Dfree
+        return np.array([lam1, lam1, lam1])
+
+    def angles(self):
+        return self.param[3:5]
+
+    def free_water_fraction(self):
+        return self.param[5]
 
 
 def _single_tensor_prolate(gtab, param):
@@ -126,3 +195,15 @@ def _isotropic_tensor(gtab, param):
     return S.reshape(out_shape)
 
 
+def grid_search(N, bounds):
+
+    x0s = []
+    for x_iso in np.linspace(bounds[0][0], bounds[0][1], N[0]):
+        for x_lam1 in np.linspace(bounds[1][0], bounds[1][1], N[1]):
+            for x_lam2 in np.linspace(bounds[2][0], bounds[2][1], N[2]):
+                for ang1 in np.linspace(bounds[3][0], bounds[3][1], N[3]):
+                    for ang2 in np.linspace(bounds[4][0], bounds[4][1], N[4]):
+                        for fw_f in np.linspace(bounds[5][0], bounds[5][1], N[5]):
+                            x0s.append([x_iso, x_lam1, x_lam2, ang1, ang2, fw_f])
+
+    return np.array(x0s)
