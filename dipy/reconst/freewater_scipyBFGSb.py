@@ -10,7 +10,7 @@ from dipy.sims.voxel import all_tensor_evecs
 
 class FreeWaterTensorModel():
 
-    def __init__(self, gtab, init_type = 0, init_N = [10, 10, 10, 10, 10]]):
+    def __init__(self, gtab, init_type = 0, init_N = [10, 10, 10, 10, 10, 10]):
 
         self.bvals = gtab.bvals
         self.bvecs = gtab.bvecs
@@ -45,14 +45,16 @@ class FreeWaterTensorModel():
         def bounds():
             bounds = []
             
-            # isotropic tensor D in [eps, 1 - eps] * DfreeWater
-            bounds += [(1.0e-10, 1.0 - 1.0e-10)]
+            # isotropic tensor D in [0.5, 1 - eps] * DfreeWater
+            bounds += [(0.1, 1.0 - 1.0e-10)]
+            # bounds += [(0.5, 1.0 - 1.0e-10)]
 
             # prolate tensor eval lambda_1 in [eps, 1 - eps] * DfreeWater
             bounds += [(1.0e-10, 1.0 - 1.0e-10)]
 
             # prolate tensor eval lambda_2_3 in [eps, 1 - eps] * lambda_1
-            bounds += [(1.0e-10, 1.0 - 1.0e-10)]
+            bounds += [(1.0e-10, 0.5 - 1.0e-10)]
+            # bounds += [(1.0e-10, 1.0 - 1.0e-10)]
 
             # angles within the half-sphere
             bounds += [(0.0, 180.0)]
@@ -64,6 +66,7 @@ class FreeWaterTensorModel():
             return bounds
 
 
+
         if self.init_type == 0:
             # Fixed parameters initialization
             x0 = np.array([0.8, 0.8, 0.2, 90.0, 90.0, 0.2])
@@ -71,6 +74,21 @@ class FreeWaterTensorModel():
         elif self.init_type == 1:
             # loop over a grid of configuration
             x0s = grid_search(N = self.init_N, bounds = bounds())
+
+            best_x0 = np.array([0.8, 0.8, 0.2, 90.0, 90.0, 0.2])
+            best_res = residual(best_x0)
+
+            for x in x0s:
+                res = residual(x)
+                if res < best_res:
+                    best_res = res
+                    best_x0 = x
+
+            x0 = best_x0
+
+        elif self.init_type == 2:
+            # loop over a grid of configuration
+            x0s = grid_search_restricted(N = self.init_N, bounds = bounds())
 
             best_x0 = np.array([0.8, 0.8, 0.2, 90.0, 90.0, 0.2])
             best_res = residual(best_x0)
@@ -93,13 +111,13 @@ class FreeWaterTensorModel():
                             approx_grad=True,  
                             bounds=bounds(), 
                             m=10, 
-                            factr=1e0, 
+                            factr=1e1, 
                             pgtol=1e-16, 
                             epsilon=1e-8, 
-                            iprint=1, 
-                            # iprint=-1, 
-                            maxfun=1000, 
-                            maxiter=1000, 
+                            # iprint=1, 
+                            iprint=-1, 
+                            maxfun=100, 
+                            maxiter=100, 
                             disp=None, 
                             callback=None)
 
@@ -148,6 +166,14 @@ class FreeWaterTensorFit():
 
     def free_water_fraction(self):
         return self.param[5]
+
+    def prolate_evecs(self):
+        return all_tensor_evecs(self.dir).T
+
+    def prolate_fa(self):
+        x = self.param[2]
+        return ((x*x - 2*x + 1) / (2*x*x + 1))**(0.5)
+
 
 
 def _single_tensor_prolate(gtab, param):
@@ -201,6 +227,24 @@ def grid_search(N, bounds):
     for x_iso in np.linspace(bounds[0][0], bounds[0][1], N[0]):
         for x_lam1 in np.linspace(bounds[1][0], bounds[1][1], N[1]):
             for x_lam2 in np.linspace(bounds[2][0], bounds[2][1], N[2]):
+                for ang1 in np.linspace(bounds[3][0], bounds[3][1], N[3]):
+                    for ang2 in np.linspace(bounds[4][0], bounds[4][1], N[4]):
+                        for fw_f in np.linspace(bounds[5][0], bounds[5][1], N[5]):
+                            x0s.append([x_iso, x_lam1, x_lam2, ang1, ang2, fw_f])
+
+    return np.array(x0s)
+
+
+
+def grid_search_restricted(N, bounds):
+
+    x0s = []
+    # for x_iso in np.linspace(bounds[0][0], bounds[0][1], N[0]):
+    for x_iso in [0.2, 0.4, 0.6, 0.8, 0.99]:
+        # for x_lam1 in [np.linspace(bounds[1][0], bounds[1][1], N[1]):
+        for x_lam1 in [0.7]:
+            # for x_lam2 in np.linspace(bounds[2][0], bounds[2][1], N[2]):
+            for x_lam2 in [0.2]:
                 for ang1 in np.linspace(bounds[3][0], bounds[3][1], N[3]):
                     for ang2 in np.linspace(bounds[4][0], bounds[4][1], N[4]):
                         for fw_f in np.linspace(bounds[5][0], bounds[5][1], N[5]):
