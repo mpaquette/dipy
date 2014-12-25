@@ -56,6 +56,9 @@ cfa_fw = dti.color_fa(1 - fwf_fw, evecs_fw)
 
 fitQ_fw = fw_fit.fitQual
 
+isoD_fw = fw_fit.param[..., 0]
+anisoD_fw = fw_fit.param[..., 1]
+
 
 
 
@@ -91,13 +94,21 @@ pl.colorbar()
 pl.title('Anisotropic compartement volume fraction for FWmodel init=2')
 pl.show()
 
-
-
 pl.figure()
 pl.imshow((fitQ_fw[::-1,0,::-1]).T, interpolation = 'nearest')
 pl.colorbar()
 pl.title('LS residual of FWmodel init=2')
 pl.show()
 
+pl.figure()
+pl.imshow((isoD_fw[::-1,0,::-1]).T, interpolation = 'nearest')
+pl.colorbar()
+pl.title('Diffusities of Iso part of FWmodel init=2')
+pl.show()
 
+pl.figure()
+pl.imshow((anisoD_fw[::-1,0,::-1]).T, interpolation = 'nearest')
+pl.colorbar()
+pl.title('Diffusities of Aniso part of FWmodel init=2')
+pl.show()
 
