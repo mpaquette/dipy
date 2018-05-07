@@ -264,6 +264,13 @@ def gradient_table(bvals, bvecs=None, big_delta=None, small_delta=None,
                                            atol=atol)
 
 
+def voxelwise_gradient_table(bvals_array, bvecs_array=None, big_delta=None, small_delta=None,
+                   b0_threshold=0, atol=1e-2):
+    """Create an array of dipy.core.gradient.GradientTable object
+    from 
+    """
+
+
 def reorient_bvecs(gtab, affines):
     """Reorient the directions in a GradientTable.
 
